@@ -56,9 +56,13 @@ module SpreeImporter
             end
 
             before_make data
+            puts data
             make_products data
+            puts data
             make_variants data
+            puts data
             make_aditionals data
+            puts data
             after_make data
 
             if Spree::Config.verbose and row_index % Spree::Config[:log_progress_every] == 0
@@ -146,10 +150,9 @@ module SpreeImporter
       # Is responsible for creating the Product
       def make_products row
         return if row[:product][:id]
-
         before_make_products row
-
-        product = Spree::Product.create row[:product]
+        
+        product = update_or_create_product row
 
         raise product.errors.full_messages.join(', ') if product.errors.any?
 
@@ -157,6 +160,22 @@ module SpreeImporter
         row[:product][:id] = product.id
 
         after_make_products row
+      end
+
+      def update_or_create_product row
+        variant = nil
+        unless row[:product][:sku].nil?
+          # Search a variant with same Sku
+          variant = Spree::Variant.find_by sku: row[:product][:sku]
+        end
+        if variant.nil?
+          Spree::Product.create row[:product]
+        else
+          # load and update product with variant
+          product = variant.product
+          product.update_attributes row[:product]
+          product
+        end
       end
 
       # You must define here your post-insert revision logic
