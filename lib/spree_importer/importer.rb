@@ -50,19 +50,23 @@ module SpreeImporter
             end
 
             data = default_hash.deep_dup
+            # puts data.inspect
 
             @mappers.each do |mapper|
               mapper.load @spreadsheet, row_index, data
             end
 
+            # puts data.inspect
             before_make data
-            puts data
+            # puts data.inspect
             make_products data
-            puts data
+            # puts data.inspect
             make_variants data
-            puts data
+            # puts data.inspect
             make_aditionals data
-            puts data
+            # puts data.inspect
+            make_images data
+            # puts data.inspect
             after_make data
 
             if Spree::Config.verbose and row_index % Spree::Config[:log_progress_every] == 0
@@ -151,13 +155,14 @@ module SpreeImporter
       def make_products row
         return if row[:product][:id]
         before_make_products row
-        
+
         product = update_or_create_product row
 
         raise product.errors.full_messages.join(', ') if product.errors.any?
 
         # Store the Product :id in the row Hash data
         row[:product][:id] = product.id
+        row[:product][:master_variant_id] = product.master.id
 
         after_make_products row
       end
@@ -235,6 +240,40 @@ module SpreeImporter
       #   - the final values ​​in the hash data, or
       #   - perform some required process
       def after_make_aditionals row
+      end
+
+      # You must define here your hash revision logic
+      # To customize the data loaded from the given file, change the hash values, by the appropriate values
+      # You can remove or modify every key into the hash, except those defined in #default_hash, the importer requiere this structure
+
+      def before_make_images row
+      end
+
+      # Make the Spree::Images for the master variation of the product
+      def make_images row
+        before_make_images row
+
+        row[:images].each do |url|
+          image = Spree::Image.create({
+            viewable_id: row[:product][:master_variant_id],
+            viewable_type: "Spree::Variant",
+            attachment: url
+          })
+
+          puts image.inspect
+
+          raise image.errors.full_messages.join(', ') if image.errors.any?
+        end
+
+        after_make_images row
+      end
+
+      # You must define here your post-insert revision logic
+      # At this point you can check:
+      #   - the data inserted,
+      #   - the final values ​​in the hash data, or
+      #   - perform some required process
+      def after_make_images row
       end
 
       # You must define here your global post-insert revision logic
